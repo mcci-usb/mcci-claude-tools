@@ -64,169 +64,40 @@ if ($BodyFile) {
     $markdownText = $Body
 }
 
-# --- Markdown to HTML conversion ---
+# --- Markdown to HTML conversion via md-to-email-html.py ---
 
-function ConvertFrom-Markdown {
-    param([string]$Markdown)
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$converterScript = Join-Path $scriptDir "md-to-email-html.py"
 
-    $lines = $Markdown -split "`r?`n"
-
-    # State machine
-    $html = New-Object System.Text.StringBuilder
-    $inCodeBlock = $false
-    $inList = $false       # currently inside a list
-    $listType = ''         # 'ul' or 'ol'
-    $olItemCount = 0       # running count for ordered list continuity
-    $paragraph = New-Object System.Collections.Generic.List[string]
-
-    # Style constants
-    $bodyFont = "font-family: Calibri, sans-serif; font-size: 11pt;"
-    $codeBlockStyle = "font-family: Consolas, monospace; font-size: 10pt; background-color: #f5f5f5; padding: 8px 12px; border: 1px solid #e0e0e0; white-space: pre; display: block;"
-    $inlineCodeStyle = "font-family: Consolas, monospace; font-size: 10pt; background-color: #f0f0f0; padding: 1px 4px;"
-
-    # Flush accumulated paragraph lines
-    function Flush-Paragraph {
-        if ($paragraph.Count -gt 0) {
-            $text = ($paragraph -join ' ')
-            $text = Convert-InlineMarkdown $text
-            [void]$html.AppendLine("<p style=`"$bodyFont margin: 0 0 10px 0;`">$text</p>")
-            $paragraph.Clear()
-        }
-    }
-
-    # Close any open list
-    function Close-List {
-        if ($inList) {
-            [void]$html.AppendLine("</$listType>")
-            Set-Variable -Name inList -Value $false -Scope 1
-            Set-Variable -Name listType -Value '' -Scope 1
-        }
-    }
-
-    # Convert inline markdown (bold, inline code, links)
-    function Convert-InlineMarkdown {
-        param([string]$text)
-
-        # Inline code (do this first so content inside backticks is not processed)
-        $text = [regex]::Replace($text, '`([^`]+)`', "<code style=`"$inlineCodeStyle`">`$1</code>")
-
-        # Bold
-        $text = [regex]::Replace($text, '\*\*(.+?)\*\*', '<b>$1</b>')
-
-        # Links
-        $text = [regex]::Replace($text, '\[([^\]]+)\]\(([^)]+)\)', '<a href="$2">$1</a>')
-
-        return $text
-    }
-
-    for ($i = 0; $i -lt $lines.Count; $i++) {
-        $line = $lines[$i]
-
-        # --- Fenced code blocks ---
-        if ($line -match '^\s*```') {
-            if ($inCodeBlock) {
-                # Closing fence
-                [void]$html.AppendLine("</pre>")
-                $inCodeBlock = $false
-            } else {
-                # Opening fence
-                Flush-Paragraph
-                Close-List
-                [void]$html.Append("<pre style=`"$codeBlockStyle`">")
-                $inCodeBlock = $true
-            }
-            continue
-        }
-
-        if ($inCodeBlock) {
-            $escaped = [System.Net.WebUtility]::HtmlEncode($line)
-            [void]$html.AppendLine($escaped)
-            continue
-        }
-
-        # --- Blank line ---
-        if ($line -match '^\s*$') {
-            Flush-Paragraph
-            Close-List
-            continue
-        }
-
-        # --- Headers ---
-        if ($line -match '^(#{1,3})\s+(.+)$') {
-            Flush-Paragraph
-            Close-List
-            $olItemCount = 0
-            $level = $matches[1].Length
-            $headerText = Convert-InlineMarkdown ([System.Net.WebUtility]::HtmlEncode($matches[2]))
-            switch ($level) {
-                1 { $hStyle = "$bodyFont font-size: 16pt; font-weight: bold; margin: 0 0 10px 0;" }
-                2 { $hStyle = "$bodyFont font-size: 14pt; font-weight: bold; margin: 0 0 8px 0;" }
-                3 { $hStyle = "$bodyFont font-size: 12pt; font-weight: bold; margin: 0 0 6px 0;" }
-            }
-            [void]$html.AppendLine("<p style=`"$hStyle`">$headerText</p>")
-            continue
-        }
-
-        # --- Bullet list ---
-        if ($line -match '^\s*[-*]\s+(.+)$') {
-            Flush-Paragraph
-            $olItemCount = 0
-            $itemText = Convert-InlineMarkdown ([System.Net.WebUtility]::HtmlEncode($matches[1]))
-            if (-not $inList -or $listType -ne 'ul') {
-                Close-List
-                [void]$html.AppendLine("<ul style=`"$bodyFont margin: 0 0 10px 0; padding-left: 24px;`">")
-                $inList = $true
-                $listType = 'ul'
-            }
-            [void]$html.AppendLine("<li style=`"margin: 0 0 4px 0;`">$itemText</li>")
-            continue
-        }
-
-        # --- Numbered list ---
-        if ($line -match '^\s*\d+\.\s+(.+)$') {
-            Flush-Paragraph
-            $itemText = Convert-InlineMarkdown ([System.Net.WebUtility]::HtmlEncode($matches[1]))
-            if (-not $inList -or $listType -ne 'ol') {
-                Close-List
-                if ($olItemCount -gt 0) {
-                    $startAttr = " start=`"$($olItemCount + 1)`""
-                } else {
-                    $startAttr = ""
-                }
-                [void]$html.AppendLine("<ol${startAttr} style=`"$bodyFont margin: 0 0 10px 0; padding-left: 24px;`">")
-                $inList = $true
-                $listType = 'ol'
-            }
-            $olItemCount++
-            [void]$html.AppendLine("<li style=`"margin: 0 0 4px 0;`">$itemText</li>")
-            continue
-        }
-
-        # --- Regular text (accumulate into paragraph) ---
-        Close-List
-        $olItemCount = 0
-        $escaped = [System.Net.WebUtility]::HtmlEncode($line)
-        $paragraph.Add($escaped)
-    }
-
-    # Flush remaining state
-    if ($inCodeBlock) {
-        [void]$html.AppendLine("</pre>")
-    }
-    Flush-Paragraph
-    Close-List
-
-    return $html.ToString()
+if (-not (Test-Path $converterScript)) {
+    Write-Error "Converter script not found: $converterScript"
+    exit 1
 }
 
-$htmlBody = ConvertFrom-Markdown $markdownText
+# Write markdown to a temp file if using -Body
+$tempMd = $null
+if ($Body) {
+    $tempMd = [System.IO.Path]::GetTempFileName() + ".md"
+    [System.IO.File]::WriteAllText($tempMd, $markdownText)
+    $BodyFile = $tempMd
+}
 
-# Wrap in a container div with base font
-$fullHtml = @"
-<div style="font-family: Calibri, sans-serif; font-size: 11pt;">
-$htmlBody
-</div>
-"@
+try {
+    $fullHtml = & uv run $converterScript $BodyFile 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Markdown conversion failed: $fullHtml"
+        exit 1
+    }
+    # uv run may emit download/install messages on stderr mixed into output;
+    # filter to just the HTML (starts with <html>)
+    if ($fullHtml -is [System.Array]) {
+        $fullHtml = ($fullHtml | Where-Object { $_ -is [string] }) -join "`n"
+    }
+} finally {
+    if ($tempMd -and (Test-Path $tempMd)) {
+        Remove-Item $tempMd -Force
+    }
+}
 
 # --- Outlook COM automation ---
 try {

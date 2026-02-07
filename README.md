@@ -8,6 +8,7 @@ Shared tools for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) a
 - Claude Code CLI
 - Git Bash / MINGW (ships with Git for Windows)
 - PowerShell 5.1 (built into Windows)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python package runner -- used for markdown-to-HTML conversion)
 
 ## Installation
 
@@ -24,6 +25,7 @@ This copies files into `~/.claude/`:
 | Source | Destination | Purpose |
 |--------|-------------|---------|
 | `scripts/New-OutlookDraft.ps1` | `~/.claude/scripts/` | PowerShell script for Outlook drafts |
+| `scripts/md-to-email-html.py` | `~/.claude/scripts/` | Markdown-to-HTML converter (called by the PS1 script) |
 | `commands/draft-email.md` | `~/.claude/commands/` | `/draft-email` slash command |
 
 Restart Claude Code after installing to pick up the new slash commands.
@@ -52,8 +54,16 @@ Claude will compose the email body, show it for your review, then open the Outlo
 
 **What it handles:**
 
-- Markdown to inline-styled HTML (Outlook-compatible)
-- Paragraphs, headers, bold, inline code, fenced code blocks, bullet/numbered lists, links
+Uses [markdown-it-py](https://github.com/executablebooks/markdown-it-py) (the same engine as VS Code's markdown preview) with [premailer](https://github.com/peterbe/premailer) for CSS inlining. Supports the full CommonMark spec plus:
+
+- Bold, italic, strikethrough
+- Fenced code blocks with syntax highlighting styles
+- Inline code
+- Bullet and numbered lists (including nested)
+- Tables
+- Blockquotes
+- Links
+- Horizontal rules
 - Base font: Calibri 11pt (matches Outlook default)
 - Code blocks: Consolas 10pt on light gray background
 
