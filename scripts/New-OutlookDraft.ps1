@@ -76,6 +76,7 @@ function ConvertFrom-Markdown {
     $inCodeBlock = $false
     $inList = $false       # currently inside a list
     $listType = ''         # 'ul' or 'ol'
+    $olItemCount = 0       # running count for ordered list continuity
     $paragraph = New-Object System.Collections.Generic.List[string]
 
     # Style constants
@@ -122,7 +123,7 @@ function ConvertFrom-Markdown {
         $line = $lines[$i]
 
         # --- Fenced code blocks ---
-        if ($line -match '^```') {
+        if ($line -match '^\s*```') {
             if ($inCodeBlock) {
                 # Closing fence
                 [void]$html.AppendLine("</pre>")
@@ -131,7 +132,7 @@ function ConvertFrom-Markdown {
                 # Opening fence
                 Flush-Paragraph
                 Close-List
-                [void]$html.AppendLine("<pre style=`"$codeBlockStyle`">")
+                [void]$html.Append("<pre style=`"$codeBlockStyle`">")
                 $inCodeBlock = $true
             }
             continue
@@ -154,6 +155,7 @@ function ConvertFrom-Markdown {
         if ($line -match '^(#{1,3})\s+(.+)$') {
             Flush-Paragraph
             Close-List
+            $olItemCount = 0
             $level = $matches[1].Length
             $headerText = Convert-InlineMarkdown ([System.Net.WebUtility]::HtmlEncode($matches[2]))
             switch ($level) {
@@ -168,6 +170,7 @@ function ConvertFrom-Markdown {
         # --- Bullet list ---
         if ($line -match '^\s*[-*]\s+(.+)$') {
             Flush-Paragraph
+            $olItemCount = 0
             $itemText = Convert-InlineMarkdown ([System.Net.WebUtility]::HtmlEncode($matches[1]))
             if (-not $inList -or $listType -ne 'ul') {
                 Close-List
@@ -185,16 +188,23 @@ function ConvertFrom-Markdown {
             $itemText = Convert-InlineMarkdown ([System.Net.WebUtility]::HtmlEncode($matches[1]))
             if (-not $inList -or $listType -ne 'ol') {
                 Close-List
-                [void]$html.AppendLine("<ol style=`"$bodyFont margin: 0 0 10px 0; padding-left: 24px;`">")
+                if ($olItemCount -gt 0) {
+                    $startAttr = " start=`"$($olItemCount + 1)`""
+                } else {
+                    $startAttr = ""
+                }
+                [void]$html.AppendLine("<ol${startAttr} style=`"$bodyFont margin: 0 0 10px 0; padding-left: 24px;`">")
                 $inList = $true
                 $listType = 'ol'
             }
+            $olItemCount++
             [void]$html.AppendLine("<li style=`"margin: 0 0 4px 0;`">$itemText</li>")
             continue
         }
 
         # --- Regular text (accumulate into paragraph) ---
         Close-List
+        $olItemCount = 0
         $escaped = [System.Net.WebUtility]::HtmlEncode($line)
         $paragraph.Add($escaped)
     }
