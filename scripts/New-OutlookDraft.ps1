@@ -83,15 +83,15 @@ if ($Body) {
 }
 
 try {
-    $fullHtml = & uv run $converterScript $BodyFile 2>&1
+    # uv run emits install/download messages on stderr; let those pass
+    # through to the console but only capture stdout.
+    $fullHtml = & uv run $converterScript $BodyFile
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Markdown conversion failed: $fullHtml"
+        Write-Error "Markdown conversion failed (exit code $LASTEXITCODE)"
         exit 1
     }
-    # uv run may emit download/install messages on stderr mixed into output;
-    # filter to just the HTML (starts with <html>)
     if ($fullHtml -is [System.Array]) {
-        $fullHtml = ($fullHtml | Where-Object { $_ -is [string] }) -join "`n"
+        $fullHtml = $fullHtml -join "`n"
     }
 } finally {
     if ($tempMd -and (Test-Path $tempMd)) {
