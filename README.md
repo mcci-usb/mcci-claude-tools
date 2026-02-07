@@ -84,4 +84,4 @@ Parameters:
 
 ## License
 
-Copyright (c) MCCI Corporation. Internal use.
+[MIT](LICENSE) Copyright (c) 2026 MCCI Corporation.
