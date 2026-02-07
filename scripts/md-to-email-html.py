@@ -1,7 +1,7 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#     "markdown-it-py[plugins]",
+#     "markdown-it-py[plugins,linkify]",
 #     "premailer",
 # ]
 # ///
@@ -293,7 +293,8 @@ def _fix_pre_for_outlook(html: str) -> str:
 
 def convert(markdown_text: str) -> str:
     """Convert markdown to inline-styled HTML."""
-    md = MarkdownIt("commonmark", {"typographer": True})
+    md = MarkdownIt("commonmark", {"typographer": True, "linkify": True})
+    md.enable("linkify")
     md.enable(["table", "strikethrough"])
     front_matter_plugin(md)
     footnote_plugin(md)
