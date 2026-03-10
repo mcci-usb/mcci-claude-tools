@@ -317,7 +317,9 @@ def convert(markdown_text: str) -> str:
 
 
 def main():
+    sys.stdout.reconfigure(encoding="utf-8")
     if len(sys.argv) < 2 or sys.argv[1] == "-":
+        sys.stdin.reconfigure(encoding="utf-8")
         markdown_text = sys.stdin.read()
     else:
         with open(sys.argv[1], encoding="utf-8") as f:

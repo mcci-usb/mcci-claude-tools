@@ -83,6 +83,10 @@ if ($Body) {
 }
 
 try {
+    # Ensure PowerShell captures UTF-8 stdout from the Python subprocess
+    $savedOutputEncoding = [Console]::OutputEncoding
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
     # uv run emits install/download messages on stderr; let those pass
     # through to the console but only capture stdout.
     $fullHtml = & uv run $converterScript $BodyFile
@@ -94,6 +98,7 @@ try {
         $fullHtml = $fullHtml -join "`n"
     }
 } finally {
+    [Console]::OutputEncoding = $savedOutputEncoding
     if ($tempMd -and (Test-Path $tempMd)) {
         Remove-Item $tempMd -Force
     }
