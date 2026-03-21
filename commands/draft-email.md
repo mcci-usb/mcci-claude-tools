@@ -3,7 +3,7 @@ Draft an Outlook email. The user's instructions are:
 $ARGUMENTS
 
 Workflow:
-1. Parse the user's instructions for recipients (to, cc, bcc), subject, and body content.
+1. Parse the user's instructions for recipients (to, cc, bcc), subject, and body content. When multiple addresses appear in any field, join them with semicolons (e.g., `-To "alice@example.com; bob@example.com"`). Outlook requires semicolons, not commas.
 2. Compose the email body in Markdown format. Keep the tone direct and matter-of-fact.
 3. Show the user the draft body and the To/Cc/Bcc/Subject fields for review before opening Outlook.
 4. Once approved, write the Markdown body to a temp file and invoke the script in a single Bash command. The snippet below handles both WSL and Git Bash (MINGW) environments:
