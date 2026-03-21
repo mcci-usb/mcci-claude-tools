@@ -31,5 +31,15 @@ Workflow:
    rm -f "$TMPFILE"
    ```
    Omit -Cc/-Bcc flags if not specified.
+5. **Reply mode:** If the user says "reply to" or "respond to" an existing email thread, you need the Outlook EntryID of the original message. To get it, run:
+   ```
+   powershell.exe -Command "(New-Object -ComObject Outlook.Application).ActiveExplorer().Selection.Item(1).EntryID"
+   ```
+   This returns the EntryID of the currently selected message in Outlook. Then use `-EntryID` instead of `-To` and `-Subject` (omit both -- recipients and subject come from the original). Add `-ReplyAll` to reply to all recipients. You can still override `-Cc` or `-Bcc`. Example:
+   ```
+   powershell.exe -ExecutionPolicy Bypass -File "$SCRIPT_PATH" \
+     -EntryID "<entry-id>" -ReplyAll \
+     -BodyFile "$BODY_PATH"
+   ```
 
 If the user provides the body content directly, use it as-is. If they describe what the email should say, compose appropriate text.
