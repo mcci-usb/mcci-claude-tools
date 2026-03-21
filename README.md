@@ -12,7 +12,7 @@ Shared tools for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) a
 
 ## Installation
 
-Clone this repo and run the install script:
+Clone this repo and run the install script **in each environment** where you use Claude Code:
 
 ```bash
 git clone <repo-url> mcci-claude-tools
@@ -20,7 +20,7 @@ cd mcci-claude-tools
 ./install.sh
 ```
 
-This copies files into `~/.claude/`:
+This copies files into `~/.claude/`, adding a provenance header so installed copies are clearly marked as non-editable.
 
 | Source | Destination | Purpose |
 |--------|-------------|---------|
@@ -37,6 +37,20 @@ To update after a `git pull`:
 ```
 
 The `-f` flag overwrites existing files.
+
+### Install model: WSL vs. Git Bash vs. native
+
+`install.sh` installs to `$HOME/.claude/`. What `$HOME` resolves to depends on where you run it:
+
+| Environment | `$HOME` | Installed path | Notes |
+|-------------|---------|----------------|-------|
+| **Git Bash on Windows** | `C:\Users\tmm` | `C:\Users\tmm\.claude\scripts\` | `powershell.exe` reads these paths directly |
+| **WSL** | `/home/tmm` | `/home/tmm/.claude/scripts/` | `powershell.exe` needs `wslpath -w` to find them |
+| **macOS / Linux** | `/home/user` | `/home/user/.claude/scripts/` | PowerShell scripts are irrelevant (no Outlook) |
+
+The two installs (Git Bash and WSL) are **independent** -- both are valid, and both should be kept up to date. Run `install.sh -f` in each environment after pulling changes.
+
+Source files contain an `# ORIGINAL SOURCE` marker. Installed copies replace this with a provenance header pointing back to the repo, so it's clear which copy is the editable original.
 
 ## Tools
 
@@ -64,7 +78,7 @@ Uses [markdown-it-py](https://github.com/executablebooks/markdown-it-py) (the sa
 - Blockquotes
 - Links
 - Horizontal rules
-- Base font: Calibri 11pt (matches Outlook default)
+- Base font: 11pt, inherits Outlook's default (currently Aptos)
 - Code blocks: Consolas 10pt on light gray background
 
 You can also ask Claude to draft an email without the slash command -- just say something like "draft an email to user@example.com about ...".

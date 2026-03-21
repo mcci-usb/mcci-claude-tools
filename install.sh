@@ -30,7 +30,13 @@ install_file() {
         return
     fi
 
-    cp "$src" "$dest"
+    # Replace "ORIGINAL SOURCE" marker with provenance header
+    {
+        printf '# INSTALLED FROM mcci-claude-tools -- do not edit this copy.\n'
+        printf '# Original: %s\n' "$src"
+        grep -v '^# ORIGINAL SOURCE --' "$src"
+    } > "$dest"
+
     echo "  OK   $name"
 }
 

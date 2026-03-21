@@ -1,3 +1,4 @@
+# ORIGINAL SOURCE -- install to ~/.claude/scripts/ using install.sh
 <#
 .SYNOPSIS
     Creates an Outlook email draft from Markdown content.

@@ -5,6 +5,7 @@
 #     "premailer",
 # ]
 # ///
+# ORIGINAL SOURCE -- install to ~/.claude/scripts/ using install.sh
 """Convert Markdown to inline-styled HTML suitable for Outlook email.
 
 Usage:
@@ -26,7 +27,6 @@ from lxml import etree
 
 CSS_TEMPLATE = """\
 body {
-    font-family: Calibri, sans-serif;
     font-size: 11pt;
     color: #000000;
     margin: 0;
