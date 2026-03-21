@@ -4,7 +4,9 @@ $ARGUMENTS
 
 Workflow:
 1. Parse the user's instructions for recipients (to, cc, bcc), subject, and body content. When multiple addresses appear in any field, join them with semicolons (e.g., `-To "alice@example.com; bob@example.com"`). Outlook requires semicolons, not commas.
-2. Compose the email body in Markdown format. Keep the tone direct and matter-of-fact.
+2. Compose the email body in Markdown format. Keep the tone direct and matter-of-fact. The body is rendered via CommonMark, so follow its rules:
+   - A single newline between lines is a *soft break* (rendered as a space, not a line break). To force a hard line break, use `<br/>` at the break point.
+   - Sign-offs like "Best regards," followed by a name on the next line must use `<br/>`: `Best regards,<br/>--Terry`. Without it, CommonMark will collapse them onto one line.
 3. Show the user the draft body and the To/Cc/Bcc/Subject fields for review before opening Outlook.
 4. Once approved, write the Markdown body to a temp file and invoke the script in a single Bash command. The snippet below handles both WSL and Git Bash (MINGW) environments:
    ```
