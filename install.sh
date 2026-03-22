@@ -44,6 +44,10 @@ install_file() {
     fi
 
     transform_file "$src" > "$dest"
+    # Shell scripts need execute permission
+    case "$name" in
+        *.sh) chmod +x "$dest" ;;
+    esac
     echo "  OK   $name"
 }
 
