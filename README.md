@@ -24,11 +24,24 @@ This copies files into `~/.claude/`, adding a provenance header so installed cop
 
 | Source | Destination | Purpose |
 |--------|-------------|---------|
-| `scripts/New-OutlookDraft.ps1` | `~/.claude/scripts/` | PowerShell script for Outlook drafts |
+| `scripts/send-outlook-draft.sh` | `~/.claude/scripts/` | Bash wrapper -- resolves WSL/MINGW paths, calls PowerShell |
+| `scripts/New-OutlookDraft.ps1` | `~/.claude/scripts/` | PowerShell script for Outlook drafts (called by the wrapper) |
 | `scripts/md-to-email-html.py` | `~/.claude/scripts/` | Markdown-to-HTML converter (called by the PS1 script) |
 | `commands/draft-email.md` | `~/.claude/commands/` | `/draft-email` slash command |
 
 Restart Claude Code after installing to pick up the new slash commands.
+
+To avoid permission prompts when `/draft-email` calls the wrapper script, add this to `~/.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(~/.claude/scripts/send-outlook-draft.sh:*)"
+    ]
+  }
+}
+```
 
 To update after a `git pull`:
 
@@ -83,9 +96,41 @@ Uses [markdown-it-py](https://github.com/executablebooks/markdown-it-py) (the sa
 
 You can also ask Claude to draft an email without the slash command -- just say something like "draft an email to user@example.com about ...".
 
+**Reply mode:** Say "reply to the selected message" or "respond to the selected email". Claude will grab the EntryID of the message currently selected in Outlook's main window and create a threaded reply.
+
+**Important:** "Selected message" means the highlighted message in Outlook's main Explorer list pane, **not** a message open in a separate read window. If you have a message open in its own window, click it in the main list first so it's highlighted there.
+
+### `send-outlook-draft.sh` -- Bash Wrapper
+
+The `/draft-email` command calls this wrapper script, which handles WSL/MINGW path resolution internally. This avoids `$()` command substitutions in the generated bash command (which would trigger Claude Code security prompts).
+
+```bash
+# New email
+~/.claude/scripts/send-outlook-draft.sh \
+  --to "user@example.com" --cc "other@example.com" \
+  --subject "Hello" --body-file /tmp/body.md
+
+# Reply to selected message
+~/.claude/scripts/send-outlook-draft.sh \
+  --entry-id "000000..." --reply-all \
+  --body-file /tmp/body.md
+```
+
+| Flag | Description |
+|------|-------------|
+| `--to` | Recipient(s), semicolon-separated |
+| `--cc` | CC recipient(s) |
+| `--bcc` | BCC recipient(s) |
+| `--subject` | Subject line |
+| `--body-file` | Path to a Markdown file for the body (required) |
+| `--entry-id` | Outlook EntryID for reply mode (replaces `--to`/`--subject`) |
+| `--reply-all` | Reply to all recipients (only with `--entry-id`) |
+
+In WSL, the script copies the body file to Windows `%TEMP%` before calling PowerShell, since Linux-only paths (e.g. `/tmp/`) resolve to UNC paths that `uv`/PowerShell can't handle. The temp copy is cleaned up automatically.
+
 ### `New-OutlookDraft.ps1` -- Direct Script Usage
 
-The PowerShell script can be called directly if needed:
+The PowerShell script can be called directly from PowerShell if needed (the bash wrapper calls it under the hood):
 
 ```powershell
 .\New-OutlookDraft.ps1 -To "user@example.com" -Subject "Hello" -Body "**Bold** and `code`"
@@ -93,6 +138,12 @@ The PowerShell script can be called directly if needed:
 
 ```powershell
 .\New-OutlookDraft.ps1 -To "a@example.com" -Cc "b@example.com" -Bcc "c@example.com" -Subject "Report" -BodyFile "C:\tmp\body.md"
+```
+
+```powershell
+# Reply to the currently selected message in Outlook's main window
+$entryId = (New-Object -ComObject Outlook.Application).ActiveExplorer().Selection.Item(1).EntryID
+.\New-OutlookDraft.ps1 -EntryID $entryId -ReplyAll -Body "Thanks for the update."
 ```
 
 Parameters:
@@ -105,6 +156,8 @@ Parameters:
 | `-Subject` | Subject line |
 | `-BodyFile` | Path to a Markdown file for the body |
 | `-Body` | Inline Markdown string (alternative to `-BodyFile`) |
+| `-EntryID` | Outlook EntryID for reply mode (replaces `-To`/`-Subject`) |
+| `-ReplyAll` | Reply to all recipients (only with `-EntryID`) |
 
 ## License
 
