@@ -25,11 +25,22 @@ for arg in "$@"; do
 done
 
 # Build the installed content from a repo source file (to stdout).
+# If the file starts with a shebang (#!), preserve it on line 1 so the
+# kernel can find it; place the provenance header on lines 2-3 instead.
 transform_file() {
     local src="$1"
-    printf '# INSTALLED FROM mcci-claude-tools -- do not edit this copy.\n'
-    printf '# Original: %s\n' "$src"
-    grep -v '^# ORIGINAL SOURCE --' "$src"
+    local first_line
+    first_line=$(head -1 "$src")
+    if [[ "$first_line" == '#!'* ]]; then
+        printf '%s\n' "$first_line"
+        printf '# INSTALLED FROM mcci-claude-tools -- do not edit this copy.\n'
+        printf '# Original: %s\n' "$src"
+        tail -n +2 "$src" | grep -v '^# ORIGINAL SOURCE --'
+    else
+        printf '# INSTALLED FROM mcci-claude-tools -- do not edit this copy.\n'
+        printf '# Original: %s\n' "$src"
+        grep -v '^# ORIGINAL SOURCE --' "$src"
+    fi
 }
 
 install_file() {
