@@ -19,7 +19,9 @@ Workflow:
    ```
    powershell.exe -Command "(New-Object -ComObject Outlook.Application).ActiveExplorer().Selection.Item(1).EntryID"
    ```
-   This returns the EntryID of the currently selected message in Outlook. Then use `--entry-id` instead of `--to` and `--subject` (omit both -- recipients and subject come from the original). Add `--reply-all` to reply to all recipients. You can still override `--cc` or `--bcc`. Example:
+   This returns the EntryID of the currently selected message in Outlook. Then use `--entry-id` instead of `--to` and `--subject` (omit both -- recipients and subject come from the original). Add `--reply-all` to reply to all recipients.
+
+   **CC/BCC on reply-all:** Omit `--cc` and `--bcc` unless you need to change the recipient list. Passing `--cc` *replaces* (does not append to) the CC list that Outlook populates from the original message. If you need to add a new recipient who wasn't on the original thread, you must include *all* desired CC addresses -- both the originals and the new ones. When the original thread already has the right recipients, just leave `--cc` off entirely. Example:
    ```
    ~/.claude/scripts/send-outlook-draft.sh \
      --entry-id "<entry-id>" --reply-all \
