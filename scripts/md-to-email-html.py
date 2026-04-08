@@ -156,24 +156,59 @@ def _pre_to_code_paragraphs(pre_elem, code_style, margin_left=None):
     return result
 
 
-def _fix_pre_for_outlook(html: str) -> str:
-    """Replace <pre><code> blocks with <p><code> elements for Outlook.
+def _fix_for_outlook(html: str) -> str:
+    """Fix HTML quirks for Outlook's Word-based rendering engine.
 
-    Outlook (Word's HTML engine) doesn't handle <pre> well -- it treats
-    each line as a separate list item when inside <ol>/<ul>, and
-    generally renders <pre> poorly.
+    Outlook (Word's HTML engine) has several issues:
+    1. <pre> rendering is broken (especially inside lists).
+    2. Container margins on <ul>/<ol> are ignored; only <li> margins
+       are honored.  This causes uneven spacing around lists because
+       the last <li>'s margin-bottom (small, for inter-item spacing)
+       becomes the gap after the list, while the gap before the list
+       comes from the preceding <p>'s margin-bottom (larger).
 
-    This function:
-    1. For <pre> inside <li>: extracts code blocks from list items,
-       splits the list with start= attributes, and converts to
-       <p><code> elements with margin-left matching the list indent.
-    2. For <pre> outside lists: converts to <p><code> elements.
+    Fixes applied:
+    - <pre> inside <li>: extract, split list with start= attributes,
+      convert to <p><code> with margin-left matching list indent.
+    - <pre> outside lists: convert to <p><code>.
+    - Last <li> in each list: set margin-bottom to match <p> spacing
+      (10px) so the gap after the list equals the gap before it.
     """
     CODE_STYLE = "font-family:Consolas, monospace; font-size:10pt; background-color:#f5f5f5; margin:0;"
     LIST_INDENT = ".5in"
+    # Must match the <p> margin-bottom so list-to-paragraph spacing is even.
+    PARAGRAPH_MARGIN_BOTTOM = "10px"
 
     parser = etree.HTMLParser()
     tree = etree.fromstring(html, parser)
+
+    # --- Fix last <li> margin in each list ---
+    # Outlook ignores <ul>/<ol> container margins and only uses <li>
+    # margins.  Set the last <li>'s margin-bottom to match <p> spacing.
+    for list_tag in tree.iter("ol", "ul"):
+        li_items = [child for child in list_tag if child.tag == "li"]
+        if not li_items:
+            continue
+        last_li = li_items[-1]
+        style = last_li.get("style", "")
+        # Replace existing margin-bottom or append it
+        if "margin-bottom" in style:
+            style = re.sub(
+                r"margin-bottom:\s*[^;]+",
+                f"margin-bottom:{PARAGRAPH_MARGIN_BOTTOM}",
+                style,
+            )
+        elif "margin:" in style:
+            # Replace the full margin shorthand's bottom value
+            # margin: T R B L -> margin: T R newB L
+            style = re.sub(
+                r"margin:\s*(\S+)\s+(\S+)\s+\S+\s+(\S+)",
+                rf"margin:\1 \2 {PARAGRAPH_MARGIN_BOTTOM} \3",
+                style,
+            )
+        else:
+            style = style.rstrip("; ") + f"; margin-bottom:{PARAGRAPH_MARGIN_BOTTOM};"
+        last_li.set("style", style)
 
     # --- Handle <pre> inside list items ---
     for list_tag in tree.iter("ol", "ul"):
@@ -310,8 +345,8 @@ def convert(markdown_text: str) -> str:
         strip_important=True,
     )
 
-    # Replace <pre> with <p><code> for Outlook compatibility
-    result = _fix_pre_for_outlook(result)
+    # Fix Outlook rendering quirks (<pre> blocks, list spacing)
+    result = _fix_for_outlook(result)
 
     return result
 
