@@ -185,6 +185,9 @@ def _fix_for_outlook(html: str) -> str:
     # --- Fix last <li> margin in each list ---
     # Outlook ignores <ul>/<ol> container margins and only uses <li>
     # margins.  Set the last <li>'s margin-bottom to match <p> spacing.
+    # Use both standard margin-bottom AND mso-margin-bottom-alt for
+    # Outlook/Word compatibility (Word's engine reads the mso- property
+    # for <ol> lists even when it ignores standard margin-bottom).
     for list_tag in tree.iter("ol", "ul"):
         li_items = [child for child in list_tag if child.tag == "li"]
         if not li_items:
@@ -208,6 +211,9 @@ def _fix_for_outlook(html: str) -> str:
             )
         else:
             style = style.rstrip("; ") + f"; margin-bottom:{PARAGRAPH_MARGIN_BOTTOM};"
+        # Add MSO-specific margin property for Outlook/Word engine
+        if "mso-margin-bottom-alt" not in style:
+            style = style.rstrip("; ") + f"; mso-margin-bottom-alt:{PARAGRAPH_MARGIN_BOTTOM};"
         last_li.set("style", style)
 
     # --- Handle <pre> inside list items ---
