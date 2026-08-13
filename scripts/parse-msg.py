@@ -87,6 +87,41 @@ def split_thread(body):
     return first_offset, segments
 
 
+def attachment_size(data):
+    """Length of an attachment payload, in bytes.
+
+    A message attached to a message arrives as an extract_msg Message, not as
+    bytes, and has no len(). Its exported form gives a real size where the
+    installed extract_msg offers one; otherwise report 0 rather than raising,
+    because one such attachment used to abort a whole batch (#40).
+    """
+    if data is None:
+        return 0
+    if isinstance(data, (bytes, bytearray)):
+        return len(data)
+    export = getattr(data, "export", None)
+    if callable(export):
+        try:
+            blob = export()
+            if isinstance(blob, (bytes, bytearray)):
+                return len(blob)
+        except Exception:
+            pass
+    return 0
+
+
+def attachment_name(a):
+    """The attachment's filename, or one built from an attached message's
+    subject. Outlook sets neither filename property on an attached .msg."""
+    name = a.longFilename or a.shortFilename
+    if name:
+        return name
+    subject = getattr(getattr(a, "data", None), "subject", None)
+    if not subject:
+        return None
+    return re.sub(r'[\\/:*?"<>|]+', "_", subject).strip() + ".msg"
+
+
 def dump_msg(path):
     import hashlib
     msg = extract_msg.Message(str(path))
@@ -132,9 +167,10 @@ def dump_msg(path):
         "rtf_present": _safe(lambda: bool(msg.rtfBody)),
         "attachments": [
             {
-                "filename": a.longFilename or a.shortFilename,
-                "size": len(a.data) if a.data else 0,
+                "filename": attachment_name(a),
+                "size": attachment_size(a.data),
                 "mime": getattr(a, "mimetype", None),
+                "embedded": not isinstance(a.data, (bytes, bytearray)) and a.data is not None,
             }
             for a in msg.attachments
         ],
