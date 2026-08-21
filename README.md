@@ -20,7 +20,7 @@ cd mcci-claude-tools
 ./install.sh
 ```
 
-This copies files into `~/.claude/`, adding a provenance header so installed copies are clearly marked as non-editable.
+This copies files into `~/.claude/`, adding a provenance line so installed copies are clearly marked as non-editable.
 
 | Source | Destination | Purpose |
 |--------|-------------|---------|
@@ -29,7 +29,7 @@ This copies files into `~/.claude/`, adding a provenance header so installed cop
 | `scripts/md-to-email-html.py` | `~/.claude/scripts/` | Markdown-to-HTML converter (called by the PS1 script) |
 | `commands/draft-email.md` | `~/.claude/commands/` | `/draft-email` slash command |
 
-Restart Claude Code after installing to pick up the new slash commands.
+Restart Claude Code after installing to pick up the new slash commands and skills.
 
 To avoid permission prompts when `/draft-email` calls the wrapper script, add this to `~/.claude/settings.json`:
 
@@ -63,7 +63,28 @@ The `-f` flag overwrites existing files.
 
 The two installs (Git Bash and WSL) are **independent** -- both are valid, and both should be kept up to date. Run `install.sh -f` in each environment after pulling changes.
 
-Source files contain an `# ORIGINAL SOURCE` marker. Installed copies replace this with a provenance header pointing back to the repo, so it's clear which copy is the editable original.
+Source files contain an `# ORIGINAL SOURCE` marker. Installed copies replace it with a provenance line naming the repo and the path within it, so it is clear which copy is the editable original:
+
+```
+# INSTALLED FROM mcci-claude-tools -- do not edit this copy.
+# Source: mcci-claude-tools/scripts/md-to-email-html.py
+```
+
+In a markdown file the same two lines go at the end, as HTML comments. They cannot go at the top: markdown keeps its metadata in the opening lines (YAML frontmatter in a `SKILL.md`, the description in a slash command), and a comment there is read as that metadata.
+
+### Installing another repo's material
+
+`install.sh` reads `scripts/`, `commands/`, and `skills/` from this repo by default. `--source` points it at another tree, so a repo holding Claude Code material of its own needs no installer:
+
+```bash
+/path/to/mcci-claude-tools/install.sh --source . --name my-context-repo
+```
+
+`--name` sets the repo name recorded in the provenance line; it defaults to the basename of the source directory. Directories the source tree does not have are skipped. `--check` and `-f` work the same way with `--source`.
+
+### Skills
+
+Each skill is a directory under `skills/` holding a `SKILL.md`, installed to `~/.claude/skills/<name>/`. A skill needing different instructions on Windows carries a `SKILL.windows.md` beside it; installing from Git Bash writes that file as the skill's `SKILL.md` and skips the POSIX one.
 
 ## Tools
 
