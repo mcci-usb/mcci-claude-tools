@@ -1,0 +1,7 @@
+# Python bytecode from running scripts/ in place
+__pycache__/
+*.pyc
+
+# Working files, not part of the repo
+scratch/
+.session-handoff.md
