@@ -15,6 +15,13 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEST="$HOME/.claude"
 
+# Git Bash on Windows installs the Windows variant of a skill; every other
+# environment installs the POSIX one.
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) IS_WINDOWS=1 ;;
+    *)                    IS_WINDOWS=0 ;;
+esac
+
 FORCE=0
 CHECK=0
 for arg in "$@"; do
@@ -30,6 +37,20 @@ done
 transform_file() {
     local src="$1"
     local first_line
+
+    # Markdown keeps its metadata in the opening lines: YAML frontmatter in a
+    # SKILL.md, the description line in a slash command. A provenance header on
+    # line 1 is read as that metadata -- it breaks frontmatter parsing and shows
+    # up as the command description -- so for markdown it goes at the end.
+    case "$src" in
+    *.md)
+        grep -v '^# ORIGINAL SOURCE --' "$src"
+        printf '\n<!-- INSTALLED FROM mcci-claude-tools -- do not edit this copy. -->\n'
+        printf '<!-- Original: %s -->\n' "$src"
+        return
+        ;;
+    esac
+
     first_line=$(head -1 "$src")
     if [[ "$first_line" == '#!'* ]]; then
         printf '%s\n' "$first_line"
@@ -55,9 +76,10 @@ install_file() {
     fi
 
     transform_file "$src" > "$dest"
-    # Shell scripts need execute permission
+    # Shell scripts, and anything else with a shebang, need execute permission
     case "$name" in
         *.sh) chmod +x "$dest" ;;
+        *)   [ "$(head -c 2 "$src")" = '#!' ] && chmod +x "$dest" || true ;;
     esac
     echo "  OK   $name"
 }
@@ -90,6 +112,47 @@ check_file() {
     fi
 }
 
+# Install or check every skill. One directory per skill, each holding a
+# SKILL.md. A skill that needs different instructions on Windows carries a
+# SKILL.windows.md alongside it, which replaces SKILL.md there.
+handle_skills() {
+    local mode="$1"
+    local d f name base target
+
+    [ -d "$SCRIPT_DIR/skills" ] || return 0
+
+    printf '\nSkills -> %s/skills/\n' "$DEST"
+    for d in "$SCRIPT_DIR"/skills/*/; do
+        [ -d "$d" ] || continue
+        name="$(basename "$d")"
+        [ "$mode" = "install" ] && mkdir -p "$DEST/skills/$name"
+
+        for f in "$d"*; do
+            [ -f "$f" ] || continue
+            base="$(basename "$f")"
+            target="$base"
+
+            case "$base" in
+                SKILL.windows.md)
+                    [ "$IS_WINDOWS" -eq 1 ] || continue
+                    target="SKILL.md"
+                    ;;
+                SKILL.md)
+                    if [ "$IS_WINDOWS" -eq 1 ] && [ -f "${d}SKILL.windows.md" ]; then
+                        continue
+                    fi
+                    ;;
+            esac
+
+            if [ "$mode" = "check" ]; then
+                check_file "$f" "$DEST/skills/$name/$target"
+            else
+                install_file "$f" "$DEST/skills/$name/$target"
+            fi
+        done
+    done
+}
+
 # --check mode: compare and report, no writes
 if [ "$CHECK" -eq 1 ]; then
     STALE=0
@@ -104,6 +167,8 @@ if [ "$CHECK" -eq 1 ]; then
     for f in "$SCRIPT_DIR"/commands/*; do
         [ -f "$f" ] && check_file "$f" "$DEST/commands/$(basename "$f")"
     done
+
+    handle_skills check
 
     echo ""
     if [ "$STALE" -eq 1 ]; then
@@ -138,5 +203,7 @@ for f in "$SCRIPT_DIR"/commands/*; do
     [ -f "$f" ] && install_file "$f" "$DEST/commands/$(basename "$f")"
 done
 
+handle_skills install
+
 echo ""
-echo "Done. Restart Claude Code to pick up new slash commands."
+echo "Done. Restart Claude Code to pick up new slash commands and skills."
