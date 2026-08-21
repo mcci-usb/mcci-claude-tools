@@ -80,7 +80,7 @@ In a markdown file the same two lines go at the end, as HTML comments. They cann
 /path/to/mcci-claude-tools/install.sh --source . --name my-context-repo
 ```
 
-`--name` sets the repo name recorded in the provenance line; it defaults to the basename of the source directory. Directories the source tree does not have are skipped. `--check` and `-f` work the same way with `--source`.
+`--name` sets the repo name recorded in the provenance line. Without it, installing this repo's own material records `mcci-claude-tools` and installing another tree records that directory's basename. Pass `--name` when the basename is not the repo name, which is the case for a submodule checked out under a different directory name. Directories the source tree does not have are skipped. `--check` and `-f` work the same way with `--source`.
 
 ### Skills
 

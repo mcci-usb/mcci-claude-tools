@@ -17,8 +17,9 @@
 #   --source DIR       read scripts/, commands/, and skills/ from DIR instead
 #                      of this repo. Lets another repo that holds Claude Code
 #                      material install it without carrying its own installer.
-#   --name NAME        repo name to record in the provenance line; defaults to
-#                      the basename of the source directory.
+#   --name NAME        repo name to record in the provenance line. Defaults to
+#                      this repo's name when installing its own material, and
+#                      to the basename of the source directory otherwise.
 
 set -e
 
@@ -29,6 +30,11 @@ DEST="$HOME/.claude"
 # they are the same unless --source says otherwise.
 SRC_DIR="$SCRIPT_DIR"
 SRC_NAME=""
+
+# This repo's name, recorded in the provenance line when installing its own
+# material. It is not the basename of the clone: as a submodule this repo sits
+# under whatever directory the parent chose.
+REPO_NAME="mcci-claude-tools"
 
 # Git Bash on Windows installs the Windows variant of a skill; every other
 # environment installs the POSIX one.
@@ -57,7 +63,13 @@ SRC_DIR="$(cd "$SRC_DIR" 2>/dev/null && pwd)" || {
     printf 'install.sh: no such source directory\n' >&2
     exit 2
 }
-[ -n "$SRC_NAME" ] || SRC_NAME="$(basename "$SRC_DIR")"
+if [ -z "$SRC_NAME" ]; then
+    if [ "$SRC_DIR" = "$SCRIPT_DIR" ]; then
+        SRC_NAME="$REPO_NAME"
+    else
+        SRC_NAME="$(basename "$SRC_DIR")"
+    fi
+fi
 
 # Build the installed content from a repo source file (to stdout).
 # If the file starts with a shebang (#!), preserve it on line 1 so the
