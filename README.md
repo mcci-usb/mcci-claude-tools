@@ -46,10 +46,10 @@ To avoid permission prompts when `/draft-email` calls the wrapper script, add th
 To update after a `git pull`:
 
 ```bash
-./install.sh -f
+./install.sh -f --clean
 ```
 
-The `-f` flag overwrites existing files.
+The `-f` flag overwrites existing files. `--clean` removes installed copies whose source file has been deleted or renamed in the repo. It decides from the provenance lines described below: a copy is removed only when its provenance names the repo being installed and the source path it records no longer exists. Files installed from another repo, or written by hand, are never touched. A skill directory left empty is removed too. `--check` reports such copies as `ORPHAN` without removing them.
 
 ### Install model: WSL vs. Git Bash vs. native
 
@@ -80,7 +80,7 @@ In a markdown file the same two lines go at the end, as HTML comments. They cann
 /path/to/mcci-claude-tools/install.sh --source . --name my-context-repo
 ```
 
-`--name` sets the repo name recorded in the provenance line. Without it, installing this repo's own material records `mcci-claude-tools` and installing another tree records that directory's basename. Pass `--name` when the basename is not the repo name, which is the case for a submodule checked out under a different directory name. Directories the source tree does not have are skipped. `--check` and `-f` work the same way with `--source`.
+`--name` sets the repo name recorded in the provenance line. Without it, installing this repo's own material records `mcci-claude-tools` and installing another tree records that directory's basename. Pass `--name` when the basename is not the repo name, which is the case for a submodule checked out under a different directory name. Directories the source tree does not have are skipped. `--check`, `-f`, and `--clean` work the same way with `--source`.
 
 ### Skills
 

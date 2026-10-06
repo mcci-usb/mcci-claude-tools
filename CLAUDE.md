@@ -20,12 +20,13 @@ Shared Claude Code tools for MCCI -- currently the Outlook email draft pipeline.
 - **Git Bash on Windows** -- installs to `C:\Users\tmm\.claude\`. The Outlook pipeline uses these copies (PowerShell reads Windows paths directly).
 - **WSL** -- installs to `/home/tmm/.claude/`. Claude Code sessions in WSL see these copies.
 
-The two installs are independent. Run `install.sh -f` in both after pulling changes.
+The two installs are independent. Run `install.sh -f --clean` in both after pulling changes; `--clean` removes installed copies whose source file is gone from the repo.
 
 **Source vs. installed copies:**
 - Repo files carry an `# ORIGINAL SOURCE` marker.
 - Installed copies replace that marker with a provenance line (`# INSTALLED FROM mcci-claude-tools`) plus the path within the repo. It records the repo-relative path, not the absolute path of the clone, so `--check` gives the same answer from either clone.
 - In markdown those two lines go at the *end* of the file, as HTML comments. Markdown keeps its metadata in the opening lines, so a comment on line 1 is read as YAML frontmatter or as a slash command's description.
+- `--clean` uses the provenance lines to find copies whose source is gone. It removes a copy only when the provenance names the repo being installed, so another repo's copies and hand-written files are safe.
 - **Always edit the repo copies**, never the installed copies.
 
 ## Development Conventions

@@ -9,11 +9,16 @@
 #   - Copies commands/* to ~/.claude/commands/
 #   - Copies skills/* to ~/.claude/skills/
 #   - Does NOT overwrite existing files unless -f is passed
+#   - With --clean, removes installed copies whose source file is gone
 #   - With --check, compares installed copies against repo (no changes made)
 #
 # Options:
 #   -f, --force        overwrite existing installed copies
-#   --check            compare and report, write nothing
+#   --clean            remove installed copies whose source file has been
+#                      deleted or renamed in the source tree. Only copies
+#                      whose provenance line names this source are touched.
+#   --check            compare and report, write nothing. Reports the copies
+#                      that --clean would remove.
 #   --source DIR       read scripts/, commands/, and skills/ from DIR instead
 #                      of this repo. Lets another repo that holds Claude Code
 #                      material install it without carrying its own installer.
@@ -45,10 +50,12 @@ esac
 
 FORCE=0
 CHECK=0
+CLEAN=0
 while [ $# -gt 0 ]; do
     case "$1" in
         -f|--force) FORCE=1 ;;
         --check)    CHECK=1 ;;
+        --clean)    CLEAN=1 ;;
         --source)   SRC_DIR="$2"; shift ;;
         --source=*) SRC_DIR="${1#--source=}" ;;
         --name)     SRC_NAME="$2"; shift ;;
@@ -162,6 +169,64 @@ check_file() {
     fi
 }
 
+# Print the repo-relative source path recorded in an installed copy, or
+# nothing if the copy's provenance does not name SRC_NAME. transform_file puts
+# the two provenance lines at the end of a markdown file and in the first three
+# lines of anything else. An older install recorded an absolute path, which
+# does not start with SRC_NAME and so is left alone.
+installed_source() {
+    local f="$1"
+    local lines src
+    case "$f" in
+        *.md) lines=$(tail -n 2 "$f" | tr -d '\r') ;;
+        *)    lines=$(head -n 3 "$f" | tr -d '\r') ;;
+    esac
+    printf '%s\n' "$lines" | grep -qxF \
+        -e "# INSTALLED FROM $SRC_NAME -- do not edit this copy." \
+        -e "<!-- INSTALLED FROM $SRC_NAME -- do not edit this copy. -->" \
+        || return 0
+    src=$(printf '%s\n' "$lines" | sed -n \
+        -e 's/^# Source: //p' \
+        -e 's/^<!-- Source: \(.*\) -->$/\1/p' | head -n 1)
+    case "$src" in
+        "$SRC_NAME"/*) printf '%s\n' "${src#"$SRC_NAME"/}" ;;
+    esac
+}
+
+# Find installed copies whose source file is no longer in SRC_DIR: a script,
+# command, or skill file that was deleted or renamed. Mode "check" reports
+# them; mode "clean" removes them, and removes a skill directory left empty.
+# A file without a provenance line naming SRC_NAME is never touched.
+handle_orphans() {
+    local mode="$1"
+    local f rel dir
+    local orphans=()
+
+    for f in "$DEST"/scripts/* "$DEST"/commands/* "$DEST"/skills/*/*; do
+        [ -f "$f" ] || continue
+        rel=$(installed_source "$f")
+        [ -n "$rel" ] || continue
+        [ -f "$SRC_DIR/$rel" ] || orphans+=("$f")
+    done
+
+    [ "${#orphans[@]}" -gt 0 ] || return 0
+
+    printf '\nInstalled from %s, source gone:\n' "$SRC_NAME"
+    for f in "${orphans[@]}"; do
+        if [ "$mode" = "check" ]; then
+            printf '  ORPHAN   %s\n' "${f#"$DEST"/}"
+            STALE=1
+        else
+            rm -f "$f"
+            printf '  REMOVED  %s\n' "${f#"$DEST"/}"
+            dir="$(dirname "$f")"
+            case "$dir" in
+                "$DEST"/skills/*) rmdir "$dir" 2>/dev/null || true ;;
+            esac
+        fi
+    done
+}
+
 # Install or check every skill. One directory per skill, each holding a
 # SKILL.md. A skill that needs different instructions on Windows carries a
 # SKILL.windows.md alongside it, which replaces SKILL.md there.
@@ -223,10 +288,11 @@ if [ "$CHECK" -eq 1 ]; then
     fi
 
     handle_skills check
+    handle_orphans check
 
     echo ""
     if [ "$STALE" -eq 1 ]; then
-        echo "Some files are stale or missing. Run ./install.sh -f to update."
+        echo "Some files are stale, missing, or orphaned. Run ./install.sh -f --clean to update."
         exit 1
     else
         echo "All installed copies are up to date."
@@ -243,6 +309,10 @@ if ls "$SRC_DIR"/scripts/*.py >/dev/null 2>&1 && ! command -v uv &>/dev/null; th
 fi
 
 printf 'Installing %s to %s ...\n' "$SRC_NAME" "$DEST"
+
+# Remove orphans before installing, so a skill whose SKILL.windows.md was
+# deleted gets its POSIX SKILL.md written in the same run.
+[ "$CLEAN" -eq 1 ] && handle_orphans clean
 
 # Scripts
 if [ -d "$SRC_DIR/scripts" ]; then
