@@ -25,11 +25,15 @@
 #   --name NAME        repo name to record in the provenance line. Defaults to
 #                      this repo's name when installing its own material, and
 #                      to the basename of the source directory otherwise.
+#   --print-dest       print the directory it would install into, and exit.
+#
+# It installs into the directory Claude Code reads: $CLAUDE_CONFIG_DIR if set;
+# otherwise, under Git Bash on Windows, %USERPROFILE%\.claude (Claude Code on
+# Windows ignores $HOME); otherwise $HOME/.claude.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEST="$HOME/.claude"
 
 # SCRIPT_DIR locates this script. SRC_DIR is the tree it reads material from;
 # they are the same unless --source says otherwise.
@@ -48,6 +52,15 @@ case "$(uname -s)" in
     *)                    IS_WINDOWS=0 ;;
 esac
 
+if [ -n "$CLAUDE_CONFIG_DIR" ]; then
+    DEST="$CLAUDE_CONFIG_DIR"
+    [ $IS_WINDOWS = 1 ] && DEST="$(cygpath -u "$DEST")"
+elif [ $IS_WINDOWS = 1 ] && [ -n "$USERPROFILE" ]; then
+    DEST="$(cygpath -u "$USERPROFILE")/.claude"
+else
+    DEST="$HOME/.claude"
+fi
+
 FORCE=0
 CHECK=0
 CLEAN=0
@@ -60,6 +73,7 @@ while [ $# -gt 0 ]; do
         --source=*) SRC_DIR="${1#--source=}" ;;
         --name)     SRC_NAME="$2"; shift ;;
         --name=*)   SRC_NAME="${1#--name=}" ;;
+        --print-dest) printf '%s\n' "$DEST"; exit 0 ;;
         -h|--help)  sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)          printf 'install.sh: unknown option %s\n' "$1" >&2; exit 2 ;;
     esac
