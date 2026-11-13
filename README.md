@@ -53,13 +53,15 @@ The `-f` flag overwrites existing files. `--clean` removes installed copies whos
 
 ### Install model: WSL vs. Git Bash vs. native
 
-`install.sh` installs to `$HOME/.claude/`. What `$HOME` resolves to depends on where you run it:
+`install.sh` installs into the directory Claude Code reads: `$CLAUDE_CONFIG_DIR` if it is set, otherwise the `.claude` directory below:
 
-| Environment | `$HOME` | Installed path | Notes |
-|-------------|---------|----------------|-------|
-| **Git Bash on Windows** | `C:\Users\tmm` | `C:\Users\tmm\.claude\scripts\` | `powershell.exe` reads these paths directly |
-| **WSL** | `/home/tmm` | `/home/tmm/.claude/scripts/` | `powershell.exe` needs `wslpath -w` to find them |
-| **macOS / Linux** | `/home/user` | `/home/user/.claude/scripts/` | PowerShell scripts are irrelevant (no Outlook) |
+| Environment | Base directory | Installed path | Notes |
+|-------------|----------------|----------------|-------|
+| **Git Bash on Windows** | `%USERPROFILE%`, e.g. `C:\Users\tmm` | `C:\Users\tmm\.claude\scripts\` | `powershell.exe` reads these paths directly |
+| **WSL** | `$HOME`, e.g. `/home/tmm` | `/home/tmm/.claude/scripts/` | `powershell.exe` needs `wslpath -w` to find them |
+| **macOS / Linux** | `$HOME`, e.g. `/home/user` | `/home/user/.claude/scripts/` | PowerShell scripts are irrelevant (no Outlook) |
+
+On Windows, Claude Code ignores `$HOME`, so a Git Bash `HOME` set elsewhere (e.g. `C:\usr\tmm`) doesn't change where `install.sh` installs. `install.sh --print-dest` prints the directory and exits.
 
 The two installs (Git Bash and WSL) are **independent** -- both are valid, and both should be kept up to date. Run `install.sh -f` in each environment after pulling changes.
 
